@@ -40,6 +40,7 @@ enum L: String {
     case sectionSystem, launchAtLogin
     case sectionLanguage, language
     case shelfTitle, shelfDropHint, shelfSwipeNote, shelfClear, shelfRemove, shelfOpen, shelfReveal
+    case obTitle, obStepSwipe, obStepDrop, obStepDone, obSkip, obFinish
 
     func callAsFunction(_ lang: AppLanguage) -> String { string(lang) }
 
@@ -100,6 +101,15 @@ enum L: String {
         .shelfRemove: [.english: "Remove", .ukrainian: "Прибрати"],
         .shelfOpen: [.english: "Open", .ukrainian: "Відкрити"],
         .shelfReveal: [.english: "Show in Finder", .ukrainian: "Показати у Finder"],
+        .obTitle: [.english: "Meet the File Shelf", .ukrainian: "Знайомтесь: Файлова полиця"],
+        .obStepSwipe: [.english: "Hover the notch and swipe sideways with two fingers to open the shelf.",
+                       .ukrainian: "Наведіть курсор на notch і проведіть двома пальцями вбік, щоб відкрити полицю."],
+        .obStepDrop: [.english: "Now drag any file onto the shelf — it stays pinned there.",
+                      .ukrainian: "Тепер перетягніть будь-який файл на полицю — він там закріпиться."],
+        .obStepDone: [.english: "Done! Drag files back out into any app whenever you need them. A file dragged to the notch opens the shelf by itself.",
+                      .ukrainian: "Готово! Перетягуйте файли з полиці в будь-який застосунок, коли потрібно. Файл, піднесений до notch, відкриє полицю сам."],
+        .obSkip: [.english: "Skip", .ukrainian: "Пропустити"],
+        .obFinish: [.english: "Got it", .ukrainian: "Зрозуміло"],
     ]
 }
 

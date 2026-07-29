@@ -185,6 +185,27 @@ struct FileShelfView: View {
     }
 }
 
+/// The hint shown at the edge of the notch content during a two-finger swipe:
+/// an arrow pointing along the swipe that crossfades into the shelf's tray
+/// icon as the gesture nears the trigger threshold.
+struct SwipeShelfHint: View {
+    var progress: Double
+    var direction: Int
+
+    var body: some View {
+        ZStack {
+            Image(systemName: direction > 0 ? "arrow.right" : "arrow.left")
+                .opacity(1 - progress)
+            Image(systemName: "tray.full.fill")
+                .opacity(progress)
+        }
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(.white)
+        .scaleEffect(0.7 + 0.4 * progress)
+        .animation(.linear(duration: 0.06), value: progress)
+    }
+}
+
 /// One attached file: icon + name, draggable out, removable on hover,
 /// double-click to open.
 private struct ShelfItemCell: View {

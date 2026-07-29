@@ -41,6 +41,16 @@ struct PlayerView: View {
         }
         .animation(.smooth(duration: 0.35), value: uiState.mini)
         .animation(.smooth(duration: 0.35), value: uiState.shelf)
+        // Two-finger swipe hint: an arrow at the destination edge that morphs
+        // into the shelf icon as the swipe approaches the trigger threshold.
+        .overlay(alignment: uiState.swipeDirection > 0 ? .trailing : .leading) {
+            if uiState.swipeProgress > 0.05, !uiState.shelf {
+                SwipeShelfHint(progress: uiState.swipeProgress,
+                               direction: uiState.swipeDirection)
+                    .padding(.horizontal, 12)
+                    .transition(.opacity)
+            }
+        }
     }
 
     private var fullView: some View {

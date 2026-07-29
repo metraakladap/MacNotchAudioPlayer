@@ -23,13 +23,18 @@ import SwiftUI
 final class NotchUIState: ObservableObject {
     @Published var mini = false
     @Published var shelf = false
+    /// Progress (0…1) of the in-flight two-finger swipe toward opening the
+    /// shelf, and its horizontal direction (+1 right / -1 left). Drives the
+    /// arrow-morphs-into-tray hint at the edge of the notch content.
+    @Published var swipeProgress: Double = 0
+    @Published var swipeDirection: Int = 1
 }
 
 @MainActor
 final class NotchController {
     private let notch: DynamicNotch<AnyView, AnyView, AnyView>
     private let prefs: Preferences
-    private let ui = NotchUIState()
+    let ui = NotchUIState()
     private var cancellables = Set<AnyCancellable>()
     private var isHovering = false
     private var hoverWatchdog: Task<Void, Never>?
@@ -163,14 +168,20 @@ final class NotchController {
             swipeAccumX = 0
             swipeAccumY = 0
             swipeTriggered = false
+            ui.swipeProgress = 0
         case .changed:
             guard !swipeTriggered else { return }
             swipeAccumX += event.scrollingDeltaX
             swipeAccumY += event.scrollingDeltaY
+            ui.swipeDirection = swipeAccumX >= 0 ? 1 : -1
+            ui.swipeProgress = min(1, abs(swipeAccumX) / 40)
             if abs(swipeAccumX) > 40, abs(swipeAccumX) > abs(swipeAccumY) * 2 {
                 swipeTriggered = true
+                ui.swipeProgress = 0
                 toggleShelf()
             }
+        case .ended, .cancelled:
+            ui.swipeProgress = 0
         default:
             break
         }

@@ -30,12 +30,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let nowPlaying = NowPlayingController()
     private var notchController: NotchController?
     private var settingsWindow: NSWindow?
+    private var onboarding: ShelfOnboardingController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         nowPlaying.start()
         notchController = NotchController(controller: nowPlaying, prefs: .shared)
         notchController?.show()
         registerLoginItemIfFirstLaunch()
+        if let notchController {
+            onboarding = ShelfOnboardingController.showIfNeeded(ui: notchController.ui)
+        }
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(showSettings),
