@@ -39,6 +39,7 @@ enum L: String {
     case hideInFullscreen, hideInFullscreenNote
     case sectionSystem, launchAtLogin
     case sectionLanguage, language
+    case shelfTitle, shelfDropHint, shelfSwipeNote, shelfClear, shelfRemove, shelfOpen, shelfReveal
 
     func callAsFunction(_ lang: AppLanguage) -> String { string(lang) }
 
@@ -91,6 +92,14 @@ enum L: String {
         .launchAtLogin: [.english: "Launch at login", .ukrainian: "Запускати при вході"],
         .sectionLanguage: [.english: "Language", .ukrainian: "Мова"],
         .language: [.english: "Language", .ukrainian: "Мова"],
+        .shelfTitle: [.english: "File Shelf", .ukrainian: "Файлова полиця"],
+        .shelfDropHint: [.english: "Drop files here", .ukrainian: "Перетягніть файли сюди"],
+        .shelfSwipeNote: [.english: "They stay pinned — drag them out whenever you need.",
+                          .ukrainian: "Вони залишаться тут — перетягніть далі, коли потрібно."],
+        .shelfClear: [.english: "Clear", .ukrainian: "Очистити"],
+        .shelfRemove: [.english: "Remove", .ukrainian: "Прибрати"],
+        .shelfOpen: [.english: "Open", .ukrainian: "Відкрити"],
+        .shelfReveal: [.english: "Show in Finder", .ukrainian: "Показати у Finder"],
     ]
 }
 

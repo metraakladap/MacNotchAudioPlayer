@@ -31,13 +31,16 @@ struct PlayerView: View {
 
     var body: some View {
         Group {
-            if uiState.mini && np.hasMedia {
+            if uiState.shelf {
+                FileShelfView(store: .shared, prefs: prefs)
+            } else if uiState.mini && np.hasMedia {
                 miniView
             } else {
                 fullView
             }
         }
         .animation(.smooth(duration: 0.35), value: uiState.mini)
+        .animation(.smooth(duration: 0.35), value: uiState.shelf)
     }
 
     private var fullView: some View {

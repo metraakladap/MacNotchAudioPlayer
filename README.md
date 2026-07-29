@@ -23,6 +23,10 @@ playback controls, and a scrubber. Styled with **macOS 26 Liquid Glass**.
   notch while playing (Dynamic-Island style).
 - **Auto-peek**: a compact **mini** card (art + title + artist only) briefly
   slides out when the track changes; hovering expands it to the full player.
+- **File Shelf**: swipe across the notch with two fingers to open a pinned
+  drop tray — drag files in, they stay attached (persisted across restarts),
+  drag them out later into Finder or any app. Swipe again to flip back to the
+  player; ✕ closes the shelf.
 - **English / Ukrainian** UI, switchable live.
 - **Settings**: a gear button in the player (and ⌘, from the menu) opens a
   window to pick the language and toggle every behavior + Launch-at-Login.

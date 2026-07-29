@@ -16,10 +16,13 @@ import DynamicNotchKit
 import SwiftUI
 
 /// Shared UI state for the expanded notch content. `mini` shows a small
-/// info-only layout (used by the auto-peek); hovering switches to the full player.
+/// info-only layout (used by the auto-peek); hovering switches to the full
+/// player. `shelf` swaps the expanded content for the file shelf, which stays
+/// pinned open until explicitly closed.
 @MainActor
 final class NotchUIState: ObservableObject {
     @Published var mini = false
+    @Published var shelf = false
 }
 
 @MainActor
@@ -35,6 +38,10 @@ final class NotchController {
     private let fullscreen = FullscreenMonitor()
     private var isFullscreen = false
     private let battery: BatteryMonitor
+    private var scrollMonitor: Any?
+    private var swipeAccumX: CGFloat = 0
+    private var swipeAccumY: CGFloat = 0
+    private var swipeTriggered = false
 
     init(controller: NowPlayingController, prefs: Preferences) {
         self.prefs = prefs
@@ -102,6 +109,20 @@ final class NotchController {
             }
             .store(in: &cancellables)
 
+        // Two-finger horizontal swipe across the notch → toggle the file shelf.
+        // A local monitor sees scroll events delivered to our panel only.
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleScroll(event) }
+            return event
+        }
+
+        // The shelf's close (✕) button.
+        NotificationCenter.default.addObserver(
+            forName: .shelfCloseRequested, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.closeShelf() }
+        }
+
         // Hide the notch while another app is fullscreen (and restore after).
         fullscreen.onChange = { [weak self] active in
             self?.handleFullscreen(active)
@@ -115,6 +136,54 @@ final class NotchController {
     /// Show the compact pill so the hover region becomes active.
     func show() {
         Task { await notch.compact() }
+    }
+
+    // MARK: - File shelf
+
+    /// Detects a deliberate two-finger horizontal swipe over the notch panel
+    /// and toggles the shelf. Accumulates deltas per gesture; triggers once
+    /// when horizontal movement clearly dominates.
+    private func handleScroll(_ event: NSEvent) {
+        guard let window = notch.windowController?.window, event.window === window else { return }
+        switch event.phase {
+        case .began:
+            swipeAccumX = 0
+            swipeAccumY = 0
+            swipeTriggered = false
+        case .changed:
+            guard !swipeTriggered else { return }
+            swipeAccumX += event.scrollingDeltaX
+            swipeAccumY += event.scrollingDeltaY
+            if abs(swipeAccumX) > 40, abs(swipeAccumX) > abs(swipeAccumY) * 2 {
+                swipeTriggered = true
+                toggleShelf()
+            }
+        default:
+            break
+        }
+    }
+
+    /// Swipe on the notch: opens the shelf, or switches back to the player
+    /// when the shelf is already showing.
+    private func toggleShelf() {
+        peekTask?.cancel()
+        if ui.shelf {
+            ui.shelf = false
+            Task { if !isHovering { await notch.compact() } }
+        } else {
+            ui.shelf = true
+            ui.mini = false
+            Task { await notch.expand() }
+        }
+    }
+
+    private func closeShelf() {
+        guard ui.shelf else { return }
+        ui.shelf = false
+        Task {
+            await notch.compact()
+            ui.mini = false
+        }
     }
 
     private var lastHapticAt: Date = .distantPast
@@ -135,10 +204,11 @@ final class NotchController {
         hoverWatchdog?.cancel()
         Task {
             if hovering {
-                // Hovering always shows the full player.
+                // Hovering always expands (player, or the shelf if it's open).
                 ui.mini = false
                 await notch.expand()
-            } else {
+            } else if !ui.shelf {
+                // The shelf stays pinned open when the mouse leaves.
                 await notch.compact()
                 ui.mini = false
             }
@@ -170,7 +240,7 @@ final class NotchController {
 
     /// Briefly slide out the *mini* (info-only) player, then collapse it again.
     private func peek() {
-        guard !isHovering, !hiddenForFullscreen else { return }
+        guard !isHovering, !hiddenForFullscreen, !ui.shelf else { return }
         peekTask?.cancel()
         peekTask = Task {
             ui.mini = true
@@ -196,8 +266,9 @@ final class NotchController {
             if hiddenForFullscreen {
                 peekTask?.cancel()
                 ui.mini = false
+                ui.shelf = false
                 await notch.hide()
-            } else if isHovering {
+            } else if isHovering || ui.shelf {
                 await notch.expand()
             } else {
                 await notch.compact()
