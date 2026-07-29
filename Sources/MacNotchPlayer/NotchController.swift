@@ -42,6 +42,10 @@ final class NotchController {
     private var swipeAccumX: CGFloat = 0
     private var swipeAccumY: CGFloat = 0
     private var swipeTriggered = false
+    private var dragMonitor: Any?
+    private var dragSessionChangeCount = -1
+    private var dragSessionHasFiles = false
+    private var shelfAutoOpenBaseline: Int?
 
     init(controller: NowPlayingController, prefs: Preferences) {
         self.prefs = prefs
@@ -116,6 +120,14 @@ final class NotchController {
             return event
         }
 
+        // Auto-open the shelf when a file drag approaches the notch. During a
+        // cross-app drag the raw mouse events stay with the *source* app, so a
+        // global monitor sees them; the drag pasteboard tells us whether the
+        // session carries files.
+        dragMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp]) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleGlobalDragEvent(event) }
+        }
+
         // The shelf's close (✕) button.
         NotificationCenter.default.addObserver(
             forName: .shelfCloseRequested, object: nil, queue: .main
@@ -184,6 +196,56 @@ final class NotchController {
             await notch.compact()
             ui.mini = false
         }
+    }
+
+    /// Tracks file drags across all apps. Entering the notch zone with a file
+    /// opens the shelf so it becomes a drop target; if the drag ends without
+    /// anything being dropped onto it, the auto-opened shelf closes itself.
+    private func handleGlobalDragEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDragged:
+            let pb = NSPasteboard(name: .drag)
+            if pb.changeCount != dragSessionChangeCount {
+                // New drag session: note whether it carries file URLs.
+                dragSessionChangeCount = pb.changeCount
+                dragSessionHasFiles = pb.canReadObject(
+                    forClasses: [NSURL.self],
+                    options: [.urlReadingFileURLsOnly: true]
+                )
+            }
+            guard dragSessionHasFiles, !ui.shelf, mouseInNotchDropZone() else { return }
+            shelfAutoOpenBaseline = ShelfStore.shared.items.count
+            peekTask?.cancel()
+            ui.shelf = true
+            ui.mini = false
+            Task { await notch.expand() }
+        case .leftMouseUp:
+            dragSessionHasFiles = false
+            guard let baseline = shelfAutoOpenBaseline else { return }
+            shelfAutoOpenBaseline = nil
+            // Give the async drop handler a moment to add items, then close the
+            // shelf if the drag ended somewhere else.
+            Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(900))
+                guard let self, self.ui.shelf else { return }
+                if ShelfStore.shared.items.count == baseline, !self.isHovering {
+                    self.closeShelf()
+                }
+            }
+        default:
+            break
+        }
+    }
+
+    /// A generous strip around the notch at the top-center of the screen.
+    private func mouseInNotchDropZone() -> Bool {
+        guard let screen = NSScreen.screens.first else { return false }
+        let f = screen.frame
+        let zoneWidth: CGFloat = 340
+        let zoneHeight: CGFloat = 56
+        let rect = NSRect(x: f.midX - zoneWidth / 2, y: f.maxY - zoneHeight,
+                          width: zoneWidth, height: zoneHeight + 8)
+        return rect.contains(NSEvent.mouseLocation)
     }
 
     private var lastHapticAt: Date = .distantPast
