@@ -100,10 +100,29 @@ struct FileShelfView: View {
                 .font(.system(size: 13, weight: .semibold))
             Spacer()
             if !store.items.isEmpty {
-                Button(prefs.t(.shelfClear)) { store.clear() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.55))
+                // A visually distinct capsule so it can't be confused with the
+                // close (✕) icon next to it.
+                Button {
+                    store.clear()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(prefs.t(.shelfClear))
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(.white.opacity(0.12)))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                Rectangle()
+                    .fill(.white.opacity(0.2))
+                    .frame(width: 1, height: 14)
+                    .padding(.horizontal, 4)
             }
             Button {
                 NotificationCenter.default.post(name: .shelfCloseRequested, object: nil)
