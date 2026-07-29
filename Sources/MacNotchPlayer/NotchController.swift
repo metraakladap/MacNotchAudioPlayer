@@ -176,17 +176,32 @@ final class NotchController {
         }
     }
 
+    /// The drag machinery skips windows at very high levels, so the panel is
+    /// lowered to `.popUpMenu` (still above normal windows) while the shelf is
+    /// open, and restored to DynamicNotchKit's `.screenSaver` when it closes.
+    /// Must be re-applied after every expand, because the panel window can be
+    /// recreated during the transition.
+    private func applyShelfWindowLevel() {
+        notch.windowController?.window?.level = ui.shelf ? .popUpMenu : .screenSaver
+    }
+
     /// Swipe on the notch: opens the shelf, or switches back to the player
     /// when the shelf is already showing.
     private func toggleShelf() {
         peekTask?.cancel()
         if ui.shelf {
             ui.shelf = false
-            Task { if !isHovering { await notch.compact() } }
+            Task {
+                if !isHovering { await notch.compact() }
+                applyShelfWindowLevel()
+            }
         } else {
             ui.shelf = true
             ui.mini = false
-            Task { await notch.expand() }
+            Task {
+                await notch.expand()
+                applyShelfWindowLevel()
+            }
         }
     }
 
@@ -196,6 +211,7 @@ final class NotchController {
         Task {
             await notch.compact()
             ui.mini = false
+            applyShelfWindowLevel()
         }
     }
 
@@ -223,7 +239,10 @@ final class NotchController {
             peekTask?.cancel()
             ui.shelf = true
             ui.mini = false
-            Task { await notch.expand() }
+            Task {
+                await notch.expand()
+                applyShelfWindowLevel()
+            }
         } else {
             dragSessionHasFiles = false
             guard let baseline = shelfAutoOpenBaseline else { return }
@@ -272,6 +291,7 @@ final class NotchController {
                 // Hovering always expands (player, or the shelf if it's open).
                 ui.mini = false
                 await notch.expand()
+                applyShelfWindowLevel()
             } else if !ui.shelf {
                 // The shelf stays pinned open when the mouse leaves.
                 await notch.compact()

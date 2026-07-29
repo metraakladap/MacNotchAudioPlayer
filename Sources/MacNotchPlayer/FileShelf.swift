@@ -79,6 +79,15 @@ struct FileShelfView: View {
         .frame(width: 400)
         .foregroundStyle(.white)
         .contentShape(Rectangle())
+        // AppKit-level drag destination: SwiftUI's onDrop can be unreliable
+        // inside a borderless non-activating panel, so a plain NSView with
+        // registerForDraggedTypes backs the whole shelf area.
+        .background(
+            ShelfDropCatcher(
+                targeted: { dropTargeted = $0 },
+                onDrop: { urls in urls.forEach { ShelfStore.shared.add($0) } }
+            )
+        )
         .onDrop(of: [UTType.fileURL], isTargeted: $dropTargeted) { providers in
             handleDrop(providers)
         }
@@ -162,6 +171,70 @@ struct FileShelfView: View {
                 Task { @MainActor in ShelfStore.shared.add(url) }
             }
         }
+        return true
+    }
+}
+
+/// An AppKit drag destination that reliably receives file drops inside the
+/// notch panel and reports targeting for the highlight.
+private struct ShelfDropCatcher: NSViewRepresentable {
+    let targeted: (Bool) -> Void
+    let onDrop: ([URL]) -> Void
+
+    func makeNSView(context: Context) -> ShelfDropNSView {
+        let view = ShelfDropNSView()
+        view.onTargeted = targeted
+        view.onDrop = onDrop
+        return view
+    }
+
+    func updateNSView(_ view: ShelfDropNSView, context: Context) {
+        view.onTargeted = targeted
+        view.onDrop = onDrop
+    }
+}
+
+final class ShelfDropNSView: NSView {
+    var onTargeted: ((Bool) -> Void)?
+    var onDrop: (([URL]) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    private var hasFileURLs: (NSDraggingInfo) -> Bool {
+        { info in
+            info.draggingPasteboard.canReadObject(
+                forClasses: [NSURL.self],
+                options: [.urlReadingFileURLsOnly: true]
+            )
+        }
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard hasFileURLs(sender) else { return [] }
+        onTargeted?(true)
+        return .copy
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        onTargeted?(false)
+    }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) {
+        onTargeted?(false)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = (sender.draggingPasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL]) ?? []
+        guard !urls.isEmpty else { return false }
+        onDrop?(urls)
         return true
     }
 }
