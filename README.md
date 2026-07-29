@@ -5,7 +5,9 @@ Hover the notch and a player slides out with a smooth animation, showing the
 **currently playing track from any app** (Apple Music, Spotify, browsers, …),
 playback controls, and a scrubber. Styled with **macOS 26 Liquid Glass**.
 
-![player](docs/preview.png)
+![player](docs/player.png)
+
+![file shelf](docs/shelf.png)
 
 ## Features
 

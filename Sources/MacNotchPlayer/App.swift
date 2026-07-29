@@ -41,6 +41,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onboarding = ShelfOnboardingController.showIfNeeded(ui: notchController.ui)
         }
 
+        // Hidden helper for docs screenshots: SCREENSHOT_MODE=player|shelf
+        // expands the notch shortly after launch so the panel window can be
+        // captured with `screencapture -l`.
+        if let mode = ProcessInfo.processInfo.environment["SCREENSHOT_MODE"] {
+            // Keep re-asserting the expanded state so nothing (peeks, hover
+            // events, visibility reconciliation) can collapse it mid-capture.
+            Task { @MainActor [weak self] in
+                while true {
+                    try? await Task.sleep(for: .seconds(2))
+                    self?.notchController?.expandForScreenshot(shelf: mode == "shelf")
+                }
+            }
+        }
+
         NotificationCenter.default.addObserver(
             self, selector: #selector(showSettings),
             name: .openSettings, object: nil

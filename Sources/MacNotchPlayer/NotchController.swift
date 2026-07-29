@@ -156,6 +156,18 @@ final class NotchController {
         Task { await notch.compact() }
     }
 
+    /// Hidden helper for taking docs screenshots (SCREENSHOT_MODE env var):
+    /// expands the notch to the player or the shelf without any interaction.
+    func expandForScreenshot(shelf: Bool) {
+        peekTask?.cancel()
+        ui.shelf = shelf
+        ui.mini = false
+        Task {
+            await notch.expand()
+            applyShelfWindowLevel()
+        }
+    }
+
     // MARK: - File shelf
 
     /// Detects a deliberate two-finger horizontal swipe over the notch panel
