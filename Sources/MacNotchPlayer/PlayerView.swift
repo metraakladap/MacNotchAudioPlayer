@@ -42,19 +42,19 @@ struct PlayerView: View {
         }
         .animation(.smooth(duration: 0.35), value: uiState.mini)
         .animation(.smooth(duration: 0.35), value: uiState.shelf)
-        // Two-finger swipe hint: while the gesture is in flight the pill grows
-        // sideways, giving the hint its own margin *outside* the content, where
-        // an arrow morphs into the shelf icon as the swipe nears the threshold.
-        .padding(.horizontal, swipeHintActive ? 42 : 0)
-        .overlay(alignment: uiState.swipeDirection > 0 ? .trailing : .leading) {
+        // Two-finger swipe hint: a black droplet slides out from under the
+        // swipe-side edge, carrying an arrow that morphs into the shelf icon.
+        // It lives in a background layer, so the player's layout never moves.
+        // While within the pill's bounds it is black-on-black (invisible); the
+        // offset progressively pushes it out into view.
+        .background(alignment: uiState.swipeDirection > 0 ? .trailing : .leading) {
             if swipeHintActive {
                 SwipeShelfHint(progress: uiState.swipeProgress,
                                direction: uiState.swipeDirection)
-                    .padding(.horizontal, 10)
+                    .offset(x: uiState.swipeProgress * 84 * CGFloat(uiState.swipeDirection))
                     .transition(.opacity)
             }
         }
-        .animation(.smooth(duration: 0.25), value: swipeHintActive)
     }
 
     private var fullView: some View {

@@ -185,23 +185,31 @@ struct FileShelfView: View {
     }
 }
 
-/// The hint shown at the edge of the notch content during a two-finger swipe:
-/// an arrow pointing along the swipe that crossfades into the shelf's tray
-/// icon as the gesture nears the trigger threshold.
+/// The hint shown during a two-finger swipe: a notch-black droplet that slides
+/// out from the swipe-side edge, with an arrow that crossfades into the
+/// shelf's tray icon as the gesture nears the trigger threshold.
 struct SwipeShelfHint: View {
     var progress: Double
     var direction: Int
 
     var body: some View {
         ZStack {
-            Image(systemName: direction > 0 ? "arrow.right" : "arrow.left")
-                .opacity(1 - progress)
-            Image(systemName: "tray.full.fill")
-                .opacity(progress)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.black)
+                .frame(width: 78, height: 78)
+            ZStack {
+                Image(systemName: direction > 0 ? "arrow.right" : "arrow.left")
+                    .opacity(1 - progress)
+                Image(systemName: "tray.full.fill")
+                    .opacity(progress)
+            }
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(.white)
         }
-        .font(.system(size: 17, weight: .semibold))
-        .foregroundStyle(.white)
-        .scaleEffect(0.75 + 0.45 * progress)
+        // Grows from the attachment side, so it reads as a drop forming on
+        // the edge rather than a box fading in.
+        .scaleEffect(0.55 + 0.45 * progress,
+                     anchor: direction > 0 ? .leading : .trailing)
         .animation(.linear(duration: 0.06), value: progress)
     }
 }
