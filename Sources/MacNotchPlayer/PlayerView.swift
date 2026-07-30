@@ -26,6 +26,7 @@ struct PlayerView: View {
         isDragging ? dragValue : min(max(controller.displayedElapsed, 0), duration)
     }
     private var volumeValue: Double { isVolumeDragging ? volumeDrag : controller.volume }
+    private var swipeHintActive: Bool { uiState.swipeProgress > 0.05 && !uiState.shelf }
     private var accent: Color { controller.accent }
     private var colored: Bool { prefs.colorButtons }
 
@@ -41,16 +42,19 @@ struct PlayerView: View {
         }
         .animation(.smooth(duration: 0.35), value: uiState.mini)
         .animation(.smooth(duration: 0.35), value: uiState.shelf)
-        // Two-finger swipe hint: an arrow at the destination edge that morphs
-        // into the shelf icon as the swipe approaches the trigger threshold.
+        // Two-finger swipe hint: while the gesture is in flight the pill grows
+        // sideways, giving the hint its own margin *outside* the content, where
+        // an arrow morphs into the shelf icon as the swipe nears the threshold.
+        .padding(.horizontal, swipeHintActive ? 42 : 0)
         .overlay(alignment: uiState.swipeDirection > 0 ? .trailing : .leading) {
-            if uiState.swipeProgress > 0.05, !uiState.shelf {
+            if swipeHintActive {
                 SwipeShelfHint(progress: uiState.swipeProgress,
                                direction: uiState.swipeDirection)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .transition(.opacity)
             }
         }
+        .animation(.smooth(duration: 0.25), value: swipeHintActive)
     }
 
     private var fullView: some View {

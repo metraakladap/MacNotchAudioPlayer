@@ -199,9 +199,9 @@ struct SwipeShelfHint: View {
             Image(systemName: "tray.full.fill")
                 .opacity(progress)
         }
-        .font(.system(size: 13, weight: .semibold))
+        .font(.system(size: 17, weight: .semibold))
         .foregroundStyle(.white)
-        .scaleEffect(0.7 + 0.4 * progress)
+        .scaleEffect(0.75 + 0.45 * progress)
         .animation(.linear(duration: 0.06), value: progress)
     }
 }

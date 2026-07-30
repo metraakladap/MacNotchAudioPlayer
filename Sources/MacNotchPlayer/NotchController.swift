@@ -170,6 +170,10 @@ final class NotchController {
 
     // MARK: - File shelf
 
+    /// How far (in scroll points) a two-finger swipe must travel to open the
+    /// shelf. Long enough for the edge hint to be clearly visible mid-gesture.
+    private static let swipeThreshold: CGFloat = 100
+
     /// Detects a deliberate two-finger horizontal swipe over the notch panel
     /// and toggles the shelf. Accumulates deltas per gesture; triggers once
     /// when horizontal movement clearly dominates.
@@ -186,8 +190,8 @@ final class NotchController {
             swipeAccumX += event.scrollingDeltaX
             swipeAccumY += event.scrollingDeltaY
             ui.swipeDirection = swipeAccumX >= 0 ? 1 : -1
-            ui.swipeProgress = min(1, abs(swipeAccumX) / 40)
-            if abs(swipeAccumX) > 40, abs(swipeAccumX) > abs(swipeAccumY) * 2 {
+            ui.swipeProgress = min(1, abs(swipeAccumX) / Self.swipeThreshold)
+            if abs(swipeAccumX) > Self.swipeThreshold, abs(swipeAccumX) > abs(swipeAccumY) * 2 {
                 swipeTriggered = true
                 ui.swipeProgress = 0
                 toggleShelf()
