@@ -7,8 +7,25 @@
 
 import SwiftUI
 
+/// Lets client content extend the notch's silhouette with an extra rounded
+/// rectangle (e.g. a droplet peeking out of the pill during a gesture).
+/// Content inside the notch reports its frame in the "dynamicNotchMask"
+/// coordinate space; the mask then stops clipping that region.
+@MainActor
+public final class NotchMaskAccessory: ObservableObject {
+    public static let shared = NotchMaskAccessory()
+
+    /// Extra region (in the "dynamicNotchMask" coordinate space) to include
+    /// in the notch mask, or nil for the plain notch shape.
+    @Published public var rect: CGRect?
+    @Published public var cornerRadius: CGFloat = 24
+
+    private init() {}
+}
+
 struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @ObservedObject private var dynamicNotch: DynamicNotch<Expanded, CompactLeading, CompactTrailing>
+    @ObservedObject private var maskAccessory = NotchMaskAccessory.shared
     @State private var compactLeadingWidth: CGFloat = 0
     @State private var compactTrailingWidth: CGFloat = 0
     private let safeAreaInset: CGFloat = 15
@@ -61,17 +78,29 @@ struct NotchView<Expanded, CompactLeading, CompactTrailing>: View where Expanded
                     .padding(-50) // The opening/closing animation can overshoot, so this makes sure that it's still black
             }
             .mask {
-                NotchShape(
-                    topCornerRadius: topCornerRadius,
-                    bottomCornerRadius: bottomCornerRadius
-                )
-                .padding(.horizontal, 0.5)
-                .frame(
-                    width: dynamicNotch.state != .hidden ? nil : minWidth,
-                    height: dynamicNotch.state != .hidden ? nil : dynamicNotch.notchSize.height
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                ZStack(alignment: .topLeading) {
+                    NotchShape(
+                        topCornerRadius: topCornerRadius,
+                        bottomCornerRadius: bottomCornerRadius
+                    )
+                    .padding(.horizontal, 0.5)
+                    .frame(
+                        width: dynamicNotch.state != .hidden ? nil : minWidth,
+                        height: dynamicNotch.state != .hidden ? nil : dynamicNotch.notchSize.height
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+                    // Client-provided extra region (e.g. a droplet during a
+                    // swipe) that must not be clipped away.
+                    if let extra = maskAccessory.rect {
+                        RoundedRectangle(cornerRadius: maskAccessory.cornerRadius, style: .continuous)
+                            .frame(width: extra.width, height: extra.height)
+                            .offset(x: extra.minX, y: extra.minY)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    }
+                }
             }
+            .coordinateSpace(name: "dynamicNotchMask")
             .offset(x: xOffset)
             .animation(.smooth, value: [compactLeadingWidth, compactTrailingWidth])
     }

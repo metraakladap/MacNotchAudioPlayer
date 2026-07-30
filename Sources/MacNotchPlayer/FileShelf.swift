@@ -8,6 +8,7 @@
 //
 
 import AppKit
+import DynamicNotchKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -187,10 +188,18 @@ struct FileShelfView: View {
 
 /// The hint shown during a two-finger swipe: a notch-black droplet that slides
 /// out from the swipe-side edge, with an arrow that crossfades into the
-/// shelf's tray icon as the gesture nears the trigger threshold.
+/// shelf's tray icon as the gesture nears the trigger threshold. The notch
+/// mask normally clips everything to the pill silhouette, so the droplet
+/// reports its frame to `NotchMaskAccessory` to punch itself into the mask.
 struct SwipeShelfHint: View {
     var progress: Double
     var direction: Int
+
+    /// The icon sits at the droplet's center, which only emerges from under
+    /// the pill in the second half of the slide — keep it hidden until then
+    /// so it doesn't shine through the player content.
+    private var iconOpacity: Double { min(1, max(0, (progress - 0.45) / 0.3)) }
+    private var morph: Double { min(1, max(0, (progress - 0.7) / 0.3)) }
 
     var body: some View {
         ZStack {
@@ -199,18 +208,18 @@ struct SwipeShelfHint: View {
                 .frame(width: 78, height: 78)
             ZStack {
                 Image(systemName: direction > 0 ? "arrow.right" : "arrow.left")
-                    .opacity(1 - progress)
+                    .opacity(iconOpacity * (1 - morph))
                 Image(systemName: "tray.full.fill")
-                    .opacity(progress)
+                    .opacity(iconOpacity * morph)
             }
             .font(.system(size: 20, weight: .semibold))
             .foregroundStyle(.white)
         }
-        // Grows from the attachment side, so it reads as a drop forming on
-        // the edge rather than a box fading in.
-        .scaleEffect(0.55 + 0.45 * progress,
-                     anchor: direction > 0 ? .leading : .trailing)
         .animation(.linear(duration: 0.06), value: progress)
+        .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("dynamicNotchMask")) }) {
+            NotchMaskAccessory.shared.rect = $0
+        }
+        .onDisappear { NotchMaskAccessory.shared.rect = nil }
     }
 }
 

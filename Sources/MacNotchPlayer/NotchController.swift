@@ -172,7 +172,7 @@ final class NotchController {
 
     /// How far (in scroll points) a two-finger swipe must travel to open the
     /// shelf. Long enough for the edge hint to be clearly visible mid-gesture.
-    private static let swipeThreshold: CGFloat = 180
+    private static let swipeThreshold: CGFloat = 280
 
     /// Detects a deliberate two-finger horizontal swipe over the notch panel
     /// and toggles the shelf. Accumulates deltas per gesture; triggers once
