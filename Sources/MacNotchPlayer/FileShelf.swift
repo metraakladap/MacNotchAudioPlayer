@@ -21,6 +21,11 @@ struct ShelfItem: Identifiable, Equatable {
     let url: URL
 }
 
+/// Marker type stamped onto drags that originate from the shelf itself, so
+/// dropping such a drag back onto the shelf is ignored instead of re-adding
+/// the file as a duplicate.
+let shelfDragMarkerType = "com.danielboehm.MacNotchPlayer.shelf-item"
+
 /// The shelf's contents, persisted as file paths in UserDefaults. Files that
 /// no longer exist on disk are dropped on load.
 @MainActor
@@ -38,9 +43,21 @@ final class ShelfStore: ObservableObject {
     }
 
     func add(_ url: URL) {
-        guard !items.contains(where: { $0.url.path == url.path }) else { return }
+        let url = url.standardizedFileURL
+        guard !items.contains(where: { $0.url.path == url.path || isSameFile($0.url, url) })
+        else { return }
         items.append(ShelfItem(id: UUID(), url: url))
         save()
+    }
+
+    /// True when both URLs point at the same on-disk file (survives path
+    /// spelling differences like /var vs /private/var).
+    private nonisolated func isSameFile(_ a: URL, _ b: URL) -> Bool {
+        guard
+            let ida = try? a.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier,
+            let idb = try? b.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier
+        else { return false }
+        return ida.isEqual(idb)
     }
 
     func remove(_ item: ShelfItem) {
@@ -174,6 +191,7 @@ struct FileShelfView: View {
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
         let fileProviders = providers.filter {
             $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier)
+                && !$0.hasItemConformingToTypeIdentifier(shelfDragMarkerType)
         }
         guard !fileProviders.isEmpty else { return false }
         for provider in fileProviders {
@@ -263,7 +281,29 @@ private struct ShelfItemCell: View {
             }
         }
         .onHover { hovering = $0 }
-        .onDrag { NSItemProvider(contentsOf: item.url) ?? NSItemProvider() }
+        .onDrag {
+            // Hand out the file *URL*, not typed file data: with a data
+            // representation (NSItemProvider(contentsOf:)) Finder writes a new
+            // file named after the UTType ("JPEG image.jpeg"); with a fileURL
+            // the receiver copies the original, keeping its name.
+            let provider = NSItemProvider()
+            provider.suggestedName = item.url.lastPathComponent
+            provider.registerDataRepresentation(
+                forTypeIdentifier: UTType.fileURL.identifier,
+                visibility: .all
+            ) { completion in
+                completion(item.url.dataRepresentation, nil)
+                return nil
+            }
+            provider.registerDataRepresentation(
+                forTypeIdentifier: shelfDragMarkerType,
+                visibility: .ownProcess
+            ) { completion in
+                completion(Data(), nil)
+                return nil
+            }
+            return provider
+        }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
         .contextMenu {
             Button(prefs.t(.shelfOpen)) { NSWorkspace.shared.open(item.url) }
